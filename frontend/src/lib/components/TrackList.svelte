@@ -1,9 +1,12 @@
 <script>
-  import { Play, Pause, Plus, Music } from 'lucide-svelte';
+  import { Play, Pause, Plus, ListPlus, Check, Music } from 'lucide-svelte';
   import { currentSong, isPlaying, playSong, addToQueue, togglePlay } from '../stores/player.js';
+  import { trackToAddToPlaylist } from '../stores/playlists.js';
 
   export let tracks = [];
   export let title = 'Lagu Pilihan';
+
+  let addedQueueId = null;
 
   function handlePlay(track) {
     if ($currentSong?.id === track.id) {
@@ -11,6 +14,14 @@
     } else {
       playSong(track, tracks);
     }
+  }
+
+  function handleAddToQueue(track) {
+    addToQueue(track);
+    addedQueueId = track.id;
+    setTimeout(() => {
+      if (addedQueueId === track.id) addedQueueId = null;
+    }, 1500);
   }
 
   function formatTime(seconds) {
@@ -103,14 +114,30 @@
               </span>
             {/if}
 
-            <button
-              type="button"
-              on:click|stopPropagation={() => queue.add(track)}
-              class="w-7 h-7 rounded-full flex items-center justify-center text-neutral-400 dark:text-white/40 hover:text-neutral-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              title="Tambahkan ke Antrean"
-            >
-              <Plus class="w-4 h-4" />
-            </button>
+            <!-- Quick Actions -->
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                on:click|stopPropagation={() => trackToAddToPlaylist.set(track)}
+                class="w-7 h-7 rounded-full flex items-center justify-center text-neutral-400 dark:text-white/40 hover:text-[#fa2d48] dark:hover:text-[#fa2d48] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                title="Tambahkan ke Daftar Putar"
+              >
+                <ListPlus class="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                on:click|stopPropagation={() => handleAddToQueue(track)}
+                class="w-7 h-7 rounded-full flex items-center justify-center text-neutral-400 dark:text-white/40 hover:text-neutral-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                title={addedQueueId === track.id ? "Ditambahkan!" : "Tambahkan ke Antrean"}
+              >
+                {#if addedQueueId === track.id}
+                  <Check class="w-3.5 h-3.5 text-emerald-500 stroke-[2.5]" />
+                {:else}
+                  <Plus class="w-4 h-4" />
+                {/if}
+              </button>
+            </div>
           </div>
         </div>
       {/each}

@@ -4,6 +4,20 @@ All notable changes to the **Convx Web** platform are documented in this file. T
 
 ---
 
+## [1.0.2] — 2026-09-16
+
+### Added
+- **Complete Playlist Engine**: Full end-to-end playlist management with SQLite database persistence and Drizzle ORM (`playlists` and `playlist_tracks` tables with cascade deletion).
+- **Apple Music-Style Playlist UI**: Dedicated Playlist Grid and Detail View with 6 color gradient presets, 4-track mosaic thumbnails, total duration calculation, and Play All / Shuffle All controls.
+- **Universal "Add to Playlist" Action**: Added `+` button on all track cards across Search, Radio, and Home with Cupertino modal to add tracks to existing playlists or create new ones on the fly.
+- **YouTube & YouTube Music Playlist Import**: Instant URL/ID parsing via InnerTube engine supporting modern `lockupViewModel`, `playlistVideoRenderer`, and `musicResponsiveListItemRenderer` formats with 1-click "Simpan ke Perpustakaan" import.
+
+### Fixed
+- **Queue Store Method Call**: Fixed invalid `queue.add()` call in `TrackList.svelte` to use reactive `addToQueue()` with checkmark visual feedback.
+- **Library Navigation**: Replaced placeholder redirect from "Daftar Putar" to the dedicated Playlists view, with an independent "Antrean Putar" row.
+
+---
+
 ## [1.0.1] — 2026-09-16
 
 ### Added

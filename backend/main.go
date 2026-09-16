@@ -117,6 +117,8 @@ func main() {
 	mux.HandleFunc("POST /api/account/cookie", handleSetCookie)
 	mux.HandleFunc("POST /api/account/logout", handleLogout)
 	mux.HandleFunc("GET /api/search", handleSearch)
+	mux.HandleFunc("GET /api/playlist/yt/{playlistId}", handleGetRemotePlaylist)
+	mux.HandleFunc("GET /api/playlist/yt", handleGetRemotePlaylist)
 	mux.HandleFunc("GET /api/stream/{videoId}", handleStream)
 	mux.HandleFunc("GET /api/proxy/audio/{videoId}", handleProxyVideo)
 	mux.HandleFunc("GET /api/proxy/audio", handleProxyAudio)
@@ -206,6 +208,31 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		"results": songs,
 		"count":   len(songs),
 	})
+}
+
+func handleGetRemotePlaylist(w http.ResponseWriter, r *http.Request) {
+	playlistID := r.PathValue("playlistId")
+	if playlistID == "" {
+		playlistID = r.URL.Query().Get("id")
+		if playlistID == "" {
+			playlistID = r.URL.Query().Get("url")
+		}
+	}
+	playlistID = innertube.CleanPlaylistID(playlistID)
+	if playlistID == "" {
+		http.Error(w, `{"error":"missing playlistId or url"}`, http.StatusBadRequest)
+		return
+	}
+
+	info, err := ytClient.GetPlaylist(playlistID)
+	if err != nil {
+		log.Printf("[InnerTube] GetPlaylist error for %s: %v", playlistID, err)
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(info)
 }
 
 func handleStream(w http.ResponseWriter, r *http.Request) {

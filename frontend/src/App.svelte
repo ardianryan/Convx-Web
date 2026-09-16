@@ -39,7 +39,8 @@
     Loader2,
     Monitor,
     Tablet,
-    Info
+    Info,
+    Plus
   } from 'lucide-svelte';
   import SearchBar from './lib/components/SearchBar.svelte';
   import TrackList from './lib/components/TrackList.svelte';
@@ -50,10 +51,21 @@
   import LoginView from './lib/components/LoginView.svelte';
   import SettingsModal from './lib/components/SettingsModal.svelte';
   import ThemeToggle from './lib/components/ThemeToggle.svelte';
+  import PlaylistModal from './lib/components/PlaylistModal.svelte';
+  import AddToPlaylistModal from './lib/components/AddToPlaylistModal.svelte';
+  import PlaylistDetailView from './lib/components/PlaylistDetailView.svelte';
   import { getApiUrl } from './lib/api.js';
   import { initTheme } from './lib/stores/theme.js';
   import { currentSong, isPlaying, error, queue, playSong, togglePlay } from './lib/stores/player.js';
   import { activeDevices, thisDeviceId, startDeviceTracking } from './lib/stores/devices.js';
+  import {
+    playlists,
+    activePlaylist,
+    editingPlaylist,
+    fetchPlaylists,
+    getPlaylistDetail,
+    fetchRemotePlaylist
+  } from './lib/stores/playlists.js';
 
   // System Setup & Auth State
   let isSystemLoading = true;
@@ -183,9 +195,59 @@
     }
   }
 
+  let importUrl = '';
+  let isImporting = false;
+  let importError = '';
+
+  async function handleImportPlaylist() {
+    if (!importUrl.trim()) return;
+    isImporting = true;
+    importError = '';
+    try {
+      const pl = await fetchRemotePlaylist(importUrl.trim());
+      if (pl) {
+        importUrl = '';
+        activeTab = 'playlist-detail';
+      }
+    } catch (err) {
+      importError = err.message || 'Gagal memuat playlist YouTube';
+    } finally {
+      isImporting = false;
+    }
+  }
+
+  function handleOpenPlaylist(pl) {
+    getPlaylistDetail(pl.id);
+    activeTab = 'playlist-detail';
+  }
+
+  function handleQuickPlayPlaylist(pl) {
+    getPlaylistDetail(pl.id).then((detail) => {
+      if (detail?.tracks && detail.tracks.length > 0) {
+        playSong(detail.tracks[0], detail.tracks);
+      }
+    });
+  }
+
   async function handleSearch(e, forceSearchTab = false) {
     const q = typeof e?.detail === 'string' ? e.detail : query;
     if (!q) return;
+
+    // Detect YouTube Playlist URL or ID
+    if (q.includes('list=') || (q.startsWith('PL') && q.length > 10)) {
+      loading = true;
+      error.set(null);
+      try {
+        const pl = await fetchRemotePlaylist(q);
+        if (pl) {
+          activeTab = 'playlist-detail';
+          loading = false;
+          return;
+        }
+      } catch (err) {
+        console.warn('Remote playlist fetch fallback:', err);
+      }
+    }
 
     loading = true;
     error.set(null);
@@ -272,6 +334,7 @@
     checkAccountStatus();
     handleSearch({ detail: 'Top 100 Indonesia' });
     startDeviceTracking();
+    fetchPlaylists();
   }
 
   function handleLoginSuccess(data) {
@@ -281,6 +344,7 @@
     checkAccountStatus();
     handleSearch({ detail: 'Top 100 Indonesia' });
     startDeviceTracking();
+    fetchPlaylists();
   }
 
   async function handleLogout() {
@@ -300,6 +364,7 @@
       handleSearch({ detail: 'Top 100 Indonesia' });
       startDeviceTracking();
     }
+    fetchPlaylists();
   });
 </script>
 
@@ -402,8 +467,8 @@
         <h3 class="px-3 text-[11px] font-semibold text-neutral-400 dark:text-white/40 uppercase tracking-wider">Perpustakaan</h3>
         <div class="space-y-0.5">
           <button
-            on:click={() => (activeTab = 'library')}
-            class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-neutral-700 dark:text-white/70 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-black dark:hover:text-white transition-all"
+            on:click={() => (activeTab = 'playlists')}
+            class="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg font-medium transition-all {activeTab === 'playlists' || activeTab === 'playlist-detail' ? 'bg-[#fa2d48]/15 text-[#fa2d48]' : 'text-neutral-700 dark:text-white/70 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-black dark:hover:text-white'}"
           >
             <ListMusic class="w-4 h-4 text-[#fa2d48]" />
             <span>Daftar Putar</span>
@@ -857,17 +922,37 @@
 
           <!-- Library Menu Rows (Daftar Putar, Artis, Album, Lagu) -->
           <div class="rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 divide-y divide-black/[0.06] dark:divide-white/[0.06] overflow-hidden">
+            <!-- Daftar Putar Row -->
             <button
-              on:click={() => (activeTab = 'queue')}
-              class="w-full p-4 flex items-center justify-between hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors group text-left"
+              on:click={() => (activeTab = 'playlists')}
+              class="w-full p-4 flex items-center justify-between hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors group text-left cursor-pointer"
             >
               <div class="flex items-center gap-3">
                 <ListMusic class="w-5 h-5 text-[#fa2d48]" />
                 <span class="text-base font-semibold text-neutral-900 dark:text-white">Daftar Putar</span>
               </div>
               <div class="flex items-center gap-1.5 text-neutral-400 dark:text-white/40">
-                {#if $queue.length > 0}
+                {#if $playlists.length > 0}
                   <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-[#fa2d48] text-white">
+                    {$playlists.length}
+                  </span>
+                {/if}
+                <ChevronRight class="w-4 h-4" />
+              </div>
+            </button>
+
+            <!-- Antrean Putar Row -->
+            <button
+              on:click={() => (activeTab = 'queue')}
+              class="w-full p-4 flex items-center justify-between hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors group text-left cursor-pointer"
+            >
+              <div class="flex items-center gap-3">
+                <Clock class="w-5 h-5 text-[#fa2d48]" />
+                <span class="text-base font-semibold text-neutral-900 dark:text-white">Antrean Putar</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-neutral-400 dark:text-white/40">
+                {#if $queue.length > 0}
+                  <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-neutral-500/20 text-neutral-700 dark:text-neutral-300">
                     {$queue.length}
                   </span>
                 {/if}
@@ -1005,7 +1090,164 @@
         </div>
 
       <!-- =================================================================== -->
-      <!-- TAB 6: ANTREAN KHUSUS                                              -->
+      <!-- TAB 6: DAFTAR PUTAR (Playlists Grid)                                -->
+      <!-- =================================================================== -->
+      {:else if activeTab === 'playlists'}
+        <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
+          <!-- Page Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+            <div>
+              <h1 class="text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">Daftar Putar</h1>
+              <p class="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                Koleksi dan daftar putar musik pribadi Anda
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                on:click={() => editingPlaylist.set({ name: '', description: '', accentColor: 'rose' })}
+                class="px-4 py-2 rounded-full bg-[#fa2d48] hover:bg-[#e0263f] text-white font-bold text-xs sm:text-sm shadow-md shadow-[#fa2d48]/20 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              >
+                <Plus class="w-4 h-4" />
+                <span>Daftar Putar Baru</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- YouTube Playlist Import Bar -->
+          <div class="p-3 sm:p-4 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-center gap-3">
+            <div class="flex items-center gap-2.5 w-full sm:w-auto text-xs font-semibold text-neutral-700 dark:text-neutral-300 shrink-0">
+              <Sparkles class="w-4 h-4 text-[#fa2d48]" />
+              <span>Impor dari YouTube:</span>
+            </div>
+            <form on:submit|preventDefault={handleImportPlaylist} class="flex items-center gap-2 w-full flex-1">
+              <input
+                type="text"
+                bind:value={importUrl}
+                placeholder="Tempel link playlist YouTube atau YouTube Music..."
+                class="w-full px-3.5 py-2 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-neutral-900 dark:text-white placeholder-neutral-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#fa2d48] transition-all"
+              />
+              <button
+                type="submit"
+                disabled={isImporting || !importUrl.trim()}
+                class="px-4 py-2 rounded-xl bg-black/10 dark:bg-white/15 hover:bg-[#fa2d48] hover:text-white font-semibold text-xs sm:text-sm transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
+              >
+                {#if isImporting}
+                  <Loader2 class="w-3.5 h-3.5 animate-spin" />
+                  <span>Memuat...</span>
+                {:else}
+                  <span>Buka</span>
+                {/if}
+              </button>
+            </form>
+          </div>
+
+          {#if importError}
+            <div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-medium">
+              {importError}
+            </div>
+          {/if}
+
+          <!-- Playlists Grid -->
+          {#if $playlists.length === 0}
+            <div class="py-20 text-center rounded-3xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 space-y-4">
+              <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-red-500/20">
+                <ListMusic class="w-8 h-8" />
+              </div>
+              <div class="space-y-1 max-w-sm mx-auto px-4">
+                <h3 class="text-base font-bold text-neutral-900 dark:text-white">Belum Ada Daftar Putar</h3>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Buat daftar putar pertama Anda untuk mengelompokkan lagu-lagu favorit, atau tempel link playlist YouTube di atas.
+                </p>
+              </div>
+              <button
+                type="button"
+                on:click={() => editingPlaylist.set({ name: '', description: '', accentColor: 'rose' })}
+                class="px-5 py-2.5 rounded-full bg-[#fa2d48] hover:bg-[#e0263f] text-white font-bold text-xs sm:text-sm shadow-md shadow-[#fa2d48]/25 active:scale-95 transition-all inline-flex items-center gap-2 cursor-pointer"
+              >
+                <Plus class="w-4 h-4" />
+                <span>Buat Daftar Putar Sekarang</span>
+              </button>
+            </div>
+          {:else}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+              <!-- Card 1: "+ Buat Baru" -->
+              <button
+                type="button"
+                on:click={() => editingPlaylist.set({ name: '', description: '', accentColor: 'rose' })}
+                class="aspect-square rounded-3xl border-2 border-dashed border-black/15 dark:border-white/15 hover:border-[#fa2d48] dark:hover:border-[#fa2d48] hover:bg-[#fa2d48]/5 flex flex-col items-center justify-center gap-2 text-neutral-400 hover:text-[#fa2d48] transition-all group cursor-pointer"
+              >
+                <div class="w-12 h-12 rounded-full bg-black/5 dark:bg-white/10 group-hover:bg-[#fa2d48] group-hover:text-white flex items-center justify-center transition-colors">
+                  <Plus class="w-6 h-6" />
+                </div>
+                <span class="text-xs sm:text-sm font-bold">Daftar Putar Baru</span>
+              </button>
+
+              <!-- User Playlist Cards -->
+              {#each $playlists as pl (pl.id)}
+                {@const grad = {
+                  rose: 'from-rose-500 to-red-600',
+                  amber: 'from-amber-500 to-orange-600',
+                  ocean: 'from-blue-600 to-cyan-500',
+                  violet: 'from-fuchsia-600 to-purple-700',
+                  emerald: 'from-emerald-500 to-teal-700',
+                  dark: 'from-neutral-700 to-neutral-900',
+                }[pl.accentColor] || 'from-rose-500 to-red-600'}
+                <div
+                  role="button"
+                  tabindex="0"
+                  on:click={() => handleOpenPlaylist(pl)}
+                  on:keydown={(e) => e.key === 'Enter' && handleOpenPlaylist(pl)}
+                  class="group flex flex-col text-left cursor-pointer select-none"
+                >
+                  <!-- Cover Artwork Tile -->
+                  <div class="relative aspect-square rounded-3xl overflow-hidden shadow-md group-hover:shadow-xl group-hover:scale-[1.02] transition-all duration-300 bg-neutral-900 border border-black/5 dark:border-white/10 mb-2.5">
+                    {#if pl.coverUrl}
+                      <img src={pl.coverUrl} alt={pl.name} class="w-full h-full object-cover" loading="lazy" />
+                    {:else if pl.thumbnails && pl.thumbnails.length >= 4}
+                      <div class="w-full h-full grid grid-cols-2 grid-rows-2">
+                        {#each pl.thumbnails.slice(0, 4) as thumb}
+                          <img src={thumb} alt="" class="w-full h-full object-cover" loading="lazy" />
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class="w-full h-full bg-gradient-to-br {grad} flex items-center justify-center p-4 text-white">
+                        <Music2 class="w-12 h-12 opacity-80" />
+                      </div>
+                    {/if}
+
+                    <!-- Floating Quick-Play Hover Button -->
+                    <button
+                      type="button"
+                      on:click|stopPropagation={() => handleQuickPlayPlaylist(pl)}
+                      class="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#fa2d48] text-white shadow-xl shadow-[#fa2d48]/40 flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer z-10"
+                      title="Putar Playlist"
+                    >
+                      <Play class="w-5 h-5 fill-white ml-0.5" />
+                    </button>
+                  </div>
+
+                  <!-- Name and Song Count -->
+                  <h4 class="text-sm font-bold text-neutral-900 dark:text-white truncate group-hover:text-[#fa2d48] transition-colors">
+                    {pl.name}
+                  </h4>
+                  <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                    {pl.trackCount || 0} lagu
+                  </p>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
+      <!-- =================================================================== -->
+      <!-- TAB 7: DETAIL DAFTAR PUTAR (Playlist Detail View)                   -->
+      <!-- =================================================================== -->
+      {:else if activeTab === 'playlist-detail'}
+        <PlaylistDetailView onBack={() => (activeTab = 'playlists')} />
+
+      <!-- =================================================================== -->
+      <!-- TAB 8: ANTREAN KHUSUS                                               -->
       <!-- =================================================================== -->
       {:else if activeTab === 'queue'}
         <div class="space-y-6 anim-tab-view max-w-5xl mx-auto">
@@ -1123,6 +1365,12 @@
     isOpen={showAboutModal}
     onClose={() => (showAboutModal = false)}
   />
+
+  <!-- Playlist Create / Edit Modal -->
+  <PlaylistModal />
+
+  <!-- Add To Playlist Bottom Sheet / Modal -->
+  <AddToPlaylistModal />
 </div>
 {/if}
 

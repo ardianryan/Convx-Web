@@ -47,10 +47,40 @@ const devices = sqliteTable('devices', {
   createdAt: integer('created_at').notNull(),
 });
 
+// User Playlists
+const playlists = sqliteTable('playlists', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  coverUrl: text('cover_url'),
+  accentColor: text('accent_color').notNull().default('rose'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+// Playlist Tracks
+const playlistTracks = sqliteTable('playlist_tracks', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  playlistId: integer('playlist_id').notNull().references(() => playlists.id, { onDelete: 'cascade' }),
+  songId: text('song_id').notNull(),
+  title: text('title').notNull(),
+  artist: text('artist').notNull(),
+  album: text('album'),
+  duration: integer('duration').notNull().default(0),
+  durationText: text('duration_text'),
+  thumbnail: text('thumbnail'),
+  position: integer('position').notNull().default(0),
+  addedAt: integer('added_at').notNull(),
+});
+
 module.exports = {
   settings,
   users,
   sessions,
   proxyRelays,
   devices,
+  playlists,
+  playlistTracks,
 };
+

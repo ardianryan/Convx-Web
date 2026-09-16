@@ -430,6 +430,278 @@ app.post('/api/relays/test', requireAuth, async (req, res) => {
   res.json(result);
 });
 
+// Helper to resolve user ID from session or single-user fallback
+function getUserId(req) {
+  if (req.user && req.user.id) return req.user.id;
+  const users = db.select().from(schema.users).limit(1).all();
+  if (users && users.length > 0) return users[0].id;
+  try {
+    const insert = db.insert(schema.users).values({
+      username: 'admin',
+      name: 'Ryan Ardian',
+      passwordHash: 'default',
+      createdAt: Date.now(),
+    }).run();
+    return Number(insert.lastInsertRowid);
+  } catch (_) {
+    return 1;
+  }
+}
+
+// --- PLAYLIST ROUTES ---
+
+// GET /api/playlists — List all playlists for user with track count and preview thumbnails
+app.get('/api/playlists', optionalAuth, (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const userPlaylists = db.select().from(schema.playlists)
+      .where(eq(schema.playlists.userId, userId))
+      .all();
+
+    const results = userPlaylists.map((pl) => {
+      const tracks = db.select().from(schema.playlistTracks)
+        .where(eq(schema.playlistTracks.playlistId, pl.id))
+        .all();
+
+      const trackCount = tracks.length;
+      const totalDuration = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+      const thumbnails = tracks.slice(0, 4).map(t => t.thumbnail).filter(Boolean);
+
+      return {
+        ...pl,
+        trackCount,
+        totalDuration,
+        thumbnails,
+        coverUrl: pl.coverUrl || (thumbnails.length > 0 ? thumbnails[0] : null),
+      };
+    });
+
+    results.sort((a, b) => b.updatedAt - a.updatedAt);
+    res.json({ playlists: results });
+  } catch (err) {
+    console.error('[Playlists GET] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch playlists' });
+  }
+});
+
+// POST /api/playlists — Create new playlist
+app.post('/api/playlists', optionalAuth, (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { name, description = '', accentColor = 'rose', coverUrl = null } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Nama playlist tidak boleh kosong' });
+    }
+
+    const now = Date.now();
+    const result = db.insert(schema.playlists).values({
+      userId,
+      name: name.trim(),
+      description: description ? description.trim() : '',
+      coverUrl: coverUrl || null,
+      accentColor: accentColor || 'rose',
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    const newId = Number(result.lastInsertRowid);
+    const created = db.select().from(schema.playlists).where(eq(schema.playlists.id, newId)).all()[0];
+
+    res.json({
+      status: 'ok',
+      playlist: {
+        ...created,
+        trackCount: 0,
+        totalDuration: 0,
+        thumbnails: [],
+        tracks: [],
+      },
+    });
+  } catch (err) {
+    console.error('[Playlists POST] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create playlist' });
+  }
+});
+
+// GET /api/playlists/:id — Get playlist details with all tracks
+app.get('/api/playlists/:id', optionalAuth, (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!playlistId) return res.status(400).json({ error: 'Invalid playlist ID' });
+
+    const plList = db.select().from(schema.playlists).where(eq(schema.playlists.id, playlistId)).all();
+    if (plList.length === 0) {
+      return res.status(404).json({ error: 'Playlist tidak ditemukan' });
+    }
+
+    const playlist = plList[0];
+    const tracks = db.select().from(schema.playlistTracks)
+      .where(eq(schema.playlistTracks.playlistId, playlistId))
+      .all();
+
+    tracks.sort((a, b) => a.position - b.position);
+
+    const totalDuration = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
+    const thumbnails = tracks.slice(0, 4).map(t => t.thumbnail).filter(Boolean);
+
+    res.json({
+      playlist: {
+        ...playlist,
+        trackCount: tracks.length,
+        totalDuration,
+        thumbnails,
+        coverUrl: playlist.coverUrl || (thumbnails.length > 0 ? thumbnails[0] : null),
+        tracks,
+      },
+    });
+  } catch (err) {
+    console.error('[Playlist Detail GET] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch playlist' });
+  }
+});
+
+// PUT /api/playlists/:id — Update playlist metadata
+app.put('/api/playlists/:id', optionalAuth, (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!playlistId) return res.status(400).json({ error: 'Invalid playlist ID' });
+
+    const { name, description, accentColor, coverUrl } = req.body;
+    const updates = { updatedAt: Date.now() };
+
+    if (name !== undefined) {
+      if (!name.trim()) return res.status(400).json({ error: 'Nama playlist tidak boleh kosong' });
+      updates.name = name.trim();
+    }
+    if (description !== undefined) updates.description = description.trim();
+    if (accentColor !== undefined) updates.accentColor = accentColor;
+    if (coverUrl !== undefined) updates.coverUrl = coverUrl;
+
+    db.update(schema.playlists).set(updates).where(eq(schema.playlists.id, playlistId)).run();
+
+    const updated = db.select().from(schema.playlists).where(eq(schema.playlists.id, playlistId)).all()[0];
+    res.json({ status: 'ok', playlist: updated });
+  } catch (err) {
+    console.error('[Playlist PUT] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update playlist' });
+  }
+});
+
+// DELETE /api/playlists/:id — Delete playlist
+app.delete('/api/playlists/:id', optionalAuth, (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!playlistId) return res.status(400).json({ error: 'Invalid playlist ID' });
+
+    db.delete(schema.playlists).where(eq(schema.playlists.id, playlistId)).run();
+    res.json({ status: 'ok', message: 'Playlist berhasil dihapus' });
+  } catch (err) {
+    console.error('[Playlist DELETE] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete playlist' });
+  }
+});
+
+// POST /api/playlists/:id/tracks — Add track to playlist
+app.post('/api/playlists/:id/tracks', optionalAuth, (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!playlistId) return res.status(400).json({ error: 'Invalid playlist ID' });
+
+    const song = req.body.song || req.body;
+    if (!song || (!song.id && !song.songId) || !song.title) {
+      return res.status(400).json({ error: 'Data lagu tidak valid' });
+    }
+
+    const songId = song.id || song.songId;
+    const title = song.title;
+    const artist = song.artist || 'Unknown Artist';
+    const album = song.album || '';
+    const duration = Number(song.duration) || 0;
+    const durationText = song.durationText || '';
+    const thumbnail = song.thumbnail || `https://i.ytimg.com/vi/${songId}/hqdefault.jpg`;
+
+    const existingTracks = db.select().from(schema.playlistTracks)
+      .where(eq(schema.playlistTracks.playlistId, playlistId))
+      .all();
+
+    let maxPos = -1;
+    for (const t of existingTracks) {
+      if (t.position > maxPos) maxPos = t.position;
+    }
+    const nextPos = maxPos + 1;
+
+    const now = Date.now();
+    const result = db.insert(schema.playlistTracks).values({
+      playlistId,
+      songId,
+      title,
+      artist,
+      album,
+      duration,
+      durationText,
+      thumbnail,
+      position: nextPos,
+      addedAt: now,
+    }).run();
+
+    db.update(schema.playlists).set({ updatedAt: now }).where(eq(schema.playlists.id, playlistId)).run();
+
+    const trackId = Number(result.lastInsertRowid);
+    const inserted = db.select().from(schema.playlistTracks).where(eq(schema.playlistTracks.id, trackId)).all()[0];
+
+    res.json({ status: 'ok', track: inserted });
+  } catch (err) {
+    console.error('[Playlist Add Track] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to add track' });
+  }
+});
+
+// DELETE /api/playlists/:id/tracks/:trackId — Remove track from playlist
+app.delete('/api/playlists/:id/tracks/:trackId', optionalAuth, (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    const trackId = Number(req.params.trackId);
+    if (!playlistId || !trackId) return res.status(400).json({ error: 'Invalid IDs' });
+
+    db.delete(schema.playlistTracks)
+      .where(and(eq(schema.playlistTracks.id, trackId), eq(schema.playlistTracks.playlistId, playlistId)))
+      .run();
+
+    db.update(schema.playlists).set({ updatedAt: Date.now() }).where(eq(schema.playlists.id, playlistId)).run();
+
+    res.json({ status: 'ok', message: 'Lagu dihapus dari playlist' });
+  } catch (err) {
+    console.error('[Playlist Remove Track] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to remove track' });
+  }
+});
+
+// PUT /api/playlists/:id/reorder — Reorder tracks in playlist
+app.put('/api/playlists/:id/reorder', optionalAuth, (req, res) => {
+  try {
+    const playlistId = Number(req.params.id);
+    const { trackIds } = req.body;
+    if (!playlistId || !Array.isArray(trackIds)) {
+      return res.status(400).json({ error: 'Missing playlistId or trackIds array' });
+    }
+
+    trackIds.forEach((tId, idx) => {
+      db.update(schema.playlistTracks)
+        .set({ position: idx })
+        .where(and(eq(schema.playlistTracks.id, Number(tId)), eq(schema.playlistTracks.playlistId, playlistId)))
+        .run();
+    });
+
+    db.update(schema.playlists).set({ updatedAt: Date.now() }).where(eq(schema.playlists.id, playlistId)).run();
+
+    res.json({ status: 'ok', message: 'Urutan lagu berhasil diperbarui' });
+  } catch (err) {
+    console.error('[Playlist Reorder] Error:', err);
+    res.status(500).json({ error: err.message || 'Failed to reorder tracks' });
+  }
+});
+
 // --- PROXY TO GO BACKEND (AUDIO STREAMING & YOUTUBE API) ---
 
 function proxyToGo(req, res) {
@@ -586,6 +858,8 @@ app.all('/api/account/cookie', requireAuth, proxyToGo);
 app.all('/api/account/logout', requireAuth, proxyToGo);
 app.use('/api/stream', optionalAuth, proxyToGo);
 app.use('/api/proxy/audio', optionalAuth, proxyToGo);
+app.use('/api/playlist/yt', optionalAuth, proxyToGo);
+
 
 // --- STATIC ASSETS & SPA ROUTING ---
 

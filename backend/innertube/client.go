@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -899,3 +900,307 @@ func parseDuration(timeStr string) int {
 	}
 	return 0
 }
+
+// CleanPlaylistID extracts a playlist ID from a URL or raw ID
+func CleanPlaylistID(input string) string {
+	clean := strings.TrimSpace(input)
+	if strings.Contains(clean, "list=") {
+		parts := strings.Split(clean, "list=")
+		if len(parts) > 1 {
+			id := parts[1]
+			if idx := strings.IndexAny(id, "&?#"); idx != -1 {
+				id = id[:idx]
+			}
+			return strings.TrimSpace(id)
+		}
+	}
+	return clean
+}
+
+// GetPlaylist fetches playlist metadata and tracks from YouTube
+func (c *Client) GetPlaylist(rawID string) (*PlaylistInfo, error) {
+	playlistID := CleanPlaylistID(rawID)
+	if playlistID == "" {
+		return nil, fmt.Errorf("invalid playlist ID or URL")
+	}
+
+	browseID := playlistID
+	if !strings.HasPrefix(browseID, "VL") {
+		browseID = "VL" + browseID
+	}
+
+	reqBody := map[string]interface{}{
+		"context": map[string]interface{}{
+			"client": map[string]interface{}{
+				"clientName":    "WEB",
+				"clientVersion": "2.20240820.01.00",
+				"hl":            "en",
+				"gl":            "US",
+			},
+		},
+		"browseId": browseID,
+	}
+
+	bodyBytes, _ := json.Marshal(reqBody)
+	resp, err := c.doRequestWithFallback("POST", youtubeBase, "/browse", bodyBytes, userAgentWeb, "https://www.youtube.com/")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var rawMap map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&rawMap); err != nil {
+		return nil, err
+	}
+
+	return extractPlaylistFromBrowseResponse(playlistID, rawMap), nil
+}
+
+func extractPlaylistFromBrowseResponse(playlistID string, data map[string]interface{}) *PlaylistInfo {
+	info := &PlaylistInfo{
+		ID:     playlistID,
+		Title:  "Playlist",
+		Tracks: make([]Song, 0),
+	}
+
+	seenIDs := make(map[string]bool)
+
+	// Extract Title, Author, Description, Thumbnail from header/sidebar
+	var findHeader func(v interface{})
+	findHeader = func(v interface{}) {
+		m, ok := v.(map[string]interface{})
+		if !ok {
+			return
+		}
+
+		if phvm, ok := m["pageHeaderViewModel"].(map[string]interface{}); ok {
+			if titleObj, ok := phvm["title"].(map[string]interface{}); ok {
+				if dynText, ok := titleObj["dynamicTextViewModel"].(map[string]interface{}); ok {
+					if t, ok := dynText["text"].(map[string]interface{}); ok {
+						if c, ok := t["content"].(string); ok && c != "" {
+							info.Title = c
+						}
+					}
+				}
+			}
+		}
+
+		if phr, ok := m["playlistHeaderRenderer"].(map[string]interface{}); ok {
+			if tObj, ok := phr["title"].(map[string]interface{}); ok {
+				if runs, ok := tObj["runs"].([]interface{}); ok && len(runs) > 0 {
+					if r0, ok := runs[0].(map[string]interface{}); ok {
+						if c, ok := r0["text"].(string); ok && c != "" {
+							info.Title = c
+						}
+					}
+				} else if st, ok := tObj["simpleText"].(string); ok && st != "" {
+					info.Title = st
+				}
+			}
+			if descObj, ok := phr["descriptionText"].(map[string]interface{}); ok {
+				if st, ok := descObj["simpleText"].(string); ok {
+					info.Description = st
+				}
+			}
+		}
+
+		if owner, ok := m["videoOwnerRenderer"].(map[string]interface{}); ok {
+			if tObj, ok := owner["title"].(map[string]interface{}); ok {
+				if runs, ok := tObj["runs"].([]interface{}); ok && len(runs) > 0 {
+					if r0, ok := runs[0].(map[string]interface{}); ok {
+						if c, ok := r0["text"].(string); ok && c != "" {
+							info.Author = c
+						}
+					}
+				}
+			}
+		}
+
+		if pvt, ok := m["playlistVideoThumbnailRenderer"].(map[string]interface{}); ok {
+			if thumbObj, ok := pvt["thumbnail"].(map[string]interface{}); ok {
+				if thumbs, ok := thumbObj["thumbnails"].([]interface{}); ok && len(thumbs) > 0 {
+					if last, ok := thumbs[len(thumbs)-1].(map[string]interface{}); ok {
+						if u, ok := last["url"].(string); ok && u != "" {
+							info.Thumbnail = u
+						}
+					}
+				}
+			}
+		}
+
+		for _, child := range m {
+			if childMap, ok := child.(map[string]interface{}); ok {
+				findHeader(childMap)
+			}
+		}
+	}
+
+	findHeader(data)
+
+	// Extract Tracks
+	var walk func(v interface{})
+	walk = func(v interface{}) {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			// 1. lockupViewModel (modern YouTube)
+			if lvm, ok := val["lockupViewModel"].(map[string]interface{}); ok {
+				var videoID string
+				if rCtx, ok := lvm["rendererContext"].(map[string]interface{}); ok {
+					if cmdCtx, ok := rCtx["commandContext"].(map[string]interface{}); ok {
+						if onTap, ok := cmdCtx["onTap"].(map[string]interface{}); ok {
+							if itCmd, ok := onTap["innertubeCommand"].(map[string]interface{}); ok {
+								if wEnd, ok := itCmd["watchEndpoint"].(map[string]interface{}); ok {
+									videoID, _ = wEnd["videoId"].(string)
+								}
+							}
+						}
+					}
+				}
+
+				if videoID != "" && !seenIDs[videoID] {
+					seenIDs[videoID] = true
+					title := ""
+					artist := ""
+					durationText := ""
+					durationSec := 0
+					thumbnail := fmt.Sprintf("https://i.ytimg.com/vi/%s/hqdefault.jpg", videoID)
+
+					if meta, ok := lvm["metadata"].(map[string]interface{}); ok {
+						if lmvm, ok := meta["lockupMetadataViewModel"].(map[string]interface{}); ok {
+							if tObj, ok := lmvm["title"].(map[string]interface{}); ok {
+								title, _ = tObj["content"].(string)
+							}
+							if cMeta, ok := lmvm["metadata"].(map[string]interface{}); ok {
+								if cmvm, ok := cMeta["contentMetadataViewModel"].(map[string]interface{}); ok {
+									if rows, ok := cmvm["metadataRows"].([]interface{}); ok && len(rows) > 0 {
+										if r0, ok := rows[0].(map[string]interface{}); ok {
+											if parts, ok := r0["metadataParts"].([]interface{}); ok && len(parts) > 0 {
+												if p0, ok := parts[0].(map[string]interface{}); ok {
+													if t, ok := p0["text"].(map[string]interface{}); ok {
+														artist, _ = t["content"].(string)
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+
+					// Duration from accessibilityContext label
+					if rCtx, ok := lvm["rendererContext"].(map[string]interface{}); ok {
+						if aCtx, ok := rCtx["accessibilityContext"].(map[string]interface{}); ok {
+							if label, ok := aCtx["label"].(string); ok {
+								re := regexp.MustCompile(`(\d+)\s*(hour|minute|second)`)
+								matches := re.FindAllStringSubmatch(label, -1)
+								secs := 0
+								for _, m := range matches {
+									vInt, _ := strconv.Atoi(m[1])
+									switch m[2] {
+									case "hour":
+										secs += vInt * 3600
+									case "minute":
+										secs += vInt * 60
+									case "second":
+										secs += vInt
+									}
+								}
+								if secs > 0 {
+									durationSec = secs
+									m := secs / 60
+									s := secs % 60
+									durationText = fmt.Sprintf("%d:%02d", m, s)
+								}
+							}
+						}
+					}
+
+					if title != "" {
+						info.Tracks = append(info.Tracks, Song{
+							ID:           videoID,
+							Title:        title,
+							Artist:       artist,
+							Album:        info.Title,
+							Duration:     durationSec,
+							DurationText: durationText,
+							Thumbnail:    thumbnail,
+						})
+					}
+				}
+			}
+
+			// 2. playlistVideoRenderer (classic YouTube)
+			if pvr, ok := val["playlistVideoRenderer"].(map[string]interface{}); ok {
+				videoID, _ := pvr["videoId"].(string)
+				if videoID != "" && !seenIDs[videoID] {
+					seenIDs[videoID] = true
+					title := ""
+					if tObj, ok := pvr["title"].(map[string]interface{}); ok {
+						if runs, ok := tObj["runs"].([]interface{}); ok && len(runs) > 0 {
+							if r0, ok := runs[0].(map[string]interface{}); ok {
+								title, _ = r0["text"].(string)
+							}
+						} else if st, ok := tObj["simpleText"].(string); ok {
+							title = st
+						}
+					}
+
+					artist := ""
+					if sb, ok := pvr["shortBylineText"].(map[string]interface{}); ok {
+						if runs, ok := sb["runs"].([]interface{}); ok && len(runs) > 0 {
+							if r0, ok := runs[0].(map[string]interface{}); ok {
+								artist, _ = r0["text"].(string)
+							}
+						}
+					}
+
+					lengthSecStr, _ := pvr["lengthSeconds"].(string)
+					durationSec, _ := strconv.Atoi(lengthSecStr)
+					durationText := ""
+					if durationSec > 0 {
+						durationText = fmt.Sprintf("%d:%02d", durationSec/60, durationSec%60)
+					}
+
+					thumbnail := fmt.Sprintf("https://i.ytimg.com/vi/%s/hqdefault.jpg", videoID)
+
+					if title != "" {
+						info.Tracks = append(info.Tracks, Song{
+							ID:           videoID,
+							Title:        title,
+							Artist:       artist,
+							Album:        info.Title,
+							Duration:     durationSec,
+							DurationText: durationText,
+							Thumbnail:    thumbnail,
+						})
+					}
+				}
+			}
+
+			// 3. musicResponsiveListItemRenderer (YouTube Music)
+			if itemRenderer, ok := val["musicResponsiveListItemRenderer"].(map[string]interface{}); ok {
+				if song := parseMusicResponsiveListItem(itemRenderer, ""); song != nil && !seenIDs[song.ID] {
+					seenIDs[song.ID] = true
+					info.Tracks = append(info.Tracks, *song)
+				}
+			}
+
+			for _, child := range val {
+				walk(child)
+			}
+		case []interface{}:
+			for _, item := range val {
+				walk(item)
+			}
+		}
+	}
+
+	walk(data)
+	info.TrackCount = len(info.Tracks)
+	if info.Thumbnail == "" && len(info.Tracks) > 0 {
+		info.Thumbnail = info.Tracks[0].Thumbnail
+	}
+	return info
+}
+

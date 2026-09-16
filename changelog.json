@@ -1,8 +1,24 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "releaseDate": "2026-09-16",
-  "description": "Convx Web 1.0.1 — Standalone web repository architecture, complete resolution of 502 Bad Gateway and 0:28 audio loop via YouTube Format 18 AAC-LC streaming, and full HTTP Range seeking support.",
+  "description": "Convx Web 1.0.2 — Complete end-to-end Playlist Engine with SQLite persistence, Apple Music-style UI, Universal Add-to-Playlist, and YouTube/YouTube Music playlist import.",
   "changelog": [
+    {
+      "title": "Playlist Engine & UI",
+      "items": [
+        "Full end-to-end playlist management with SQLite database persistence and Drizzle ORM.",
+        "Apple Music-inspired Playlist Grid and Detail View with 6 color gradient presets, 4-track mosaic thumbnails, total duration calculation, and Play All / Shuffle All controls.",
+        "Universal 'Add to Playlist' action on track cards with Cupertino modal to create or add tracks on the fly.",
+        "YouTube and YouTube Music playlist import supporting lockupViewModel, playlistVideoRenderer, and musicResponsiveListItemRenderer with 1-click 'Simpan ke Perpustakaan' library import."
+      ]
+    },
+    {
+      "title": "Player & Queue Polish",
+      "items": [
+        "Fixed queue store method call in TrackList to use reactive addToQueue with visual feedback.",
+        "Independent Playlists and Queue tabs in Library navigation."
+      ]
+    },
     {
       "title": "Audio Streaming Engine",
       "items": [

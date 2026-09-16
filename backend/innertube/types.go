@@ -24,6 +24,18 @@ type StreamInfo struct {
 	ExpiresIn int    `json:"expiresIn"`
 }
 
+// PlaylistInfo represents a resolved YouTube or YouTube Music playlist
+type PlaylistInfo struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Author      string `json:"author,omitempty"`
+	Description string `json:"description,omitempty"`
+	Thumbnail   string `json:"thumbnail,omitempty"`
+	TrackCount  int    `json:"trackCount"`
+	Tracks      []Song `json:"tracks"`
+}
+
+
 // Internal Innertube request / response structures
 
 type ClientContext struct {
