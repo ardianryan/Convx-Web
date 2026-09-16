@@ -1,0 +1,24 @@
+{
+  "version": "5.1.1",
+  "releaseDate": "2026-09-16",
+  "description": "Convx Web 5.1.1 — Pemisahan arsitektur repositori mandiri, resolusi tuntas error 502 Bad Gateway dan perulangan audio 0:28 dengan adopsi streaming Android Format 18 AAC-LC, serta dukungan seeking dan HTTP Range penuh.",
+  "changelog": [
+    {
+      "title": "Perbaikan Audio Streaming (Tuntas)",
+      "items": [
+        "Adopsi client Android YouTube Format 18 (MP4 container AAC-LC) dengan ratebypass=yes tanpa batasan kuota burst 1 MiB PO Token.",
+        "Resolusi error 502 Bad Gateway dan MediaError format error saat pemutaran lagu.",
+        "Mengatasi audio yang berulang ke 00:00 di detik 28-30 saat lirik dan durasi terus berjalan maju.",
+        "Dukungan penuh HTTP Range (bytes=0- dan seeking ke posisi durasi mana pun)."
+      ]
+    },
+    {
+      "title": "Restrukturisasi Repositori Mandiri",
+      "items": [
+        "Pembersihan total modul legacy Android lama (-1.434 berkas) agar repositori ramping, ringan, dan cepat.",
+        "Promosi komponen Web (frontend, backend, server, Dockerfile) langsung ke root repositori.",
+        "Pembaruan alur kerja CI/CD GitHub Actions Docker Publish dengan caching BuildKit multi-stage."
+      ]
+    }
+  ]
+}

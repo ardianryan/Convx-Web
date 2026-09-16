@@ -32,6 +32,7 @@ Thumbs.db
 # Documentation exceptions
 *.md
 !README.md
+!CHANGELOG.md
 !SECURITY.md
 !AGENTS.md
 !docs/PRD.md
