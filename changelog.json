@@ -1,23 +1,23 @@
 {
   "version": "1.0.1",
   "releaseDate": "2026-09-16",
-  "description": "Convx Web 1.0.1 — Pemisahan arsitektur repositori mandiri, resolusi tuntas error 502 Bad Gateway dan perulangan audio 0:28 dengan adopsi streaming Android Format 18 AAC-LC, serta dukungan seeking dan HTTP Range penuh.",
+  "description": "Convx Web 1.0.1 — Standalone web repository architecture, complete resolution of 502 Bad Gateway and 0:28 audio loop via YouTube Format 18 AAC-LC streaming, and full HTTP Range seeking support.",
   "changelog": [
     {
-      "title": "Perbaikan Audio Streaming (Tuntas)",
+      "title": "Audio Streaming Engine",
       "items": [
-        "Adopsi client Android YouTube Format 18 (MP4 container AAC-LC) dengan ratebypass=yes tanpa batasan kuota burst 1 MiB PO Token.",
-        "Resolusi error 502 Bad Gateway dan MediaError format error saat pemutaran lagu.",
-        "Mengatasi audio yang berulang ke 00:00 di detik 28-30 saat lirik dan durasi terus berjalan maju.",
-        "Dukungan penuh HTTP Range (bytes=0- dan seeking ke posisi durasi mana pun)."
+        "Adoption of YouTube Android client Format 18 (MP4 container with stereo AAC-LC) featuring ratebypass=yes with no PO Token burst limits.",
+        "Resolved 502 Bad Gateway and MediaError format errors during track playback.",
+        "Fixed the 0:28 audio repeat bug where audio looped back to 00:00 while lyrics and time progressed.",
+        "Full HTTP Range support enabling instantaneous seeking to any timestamp."
       ]
     },
     {
-      "title": "Restrukturisasi Repositori Mandiri",
+      "title": "Standalone Repository Reorganization",
       "items": [
-        "Pembersihan total modul legacy Android lama (-1.434 berkas) agar repositori ramping, ringan, dan cepat.",
-        "Promosi komponen Web (frontend, backend, server, Dockerfile) langsung ke root repositori.",
-        "Pembaruan alur kerja CI/CD GitHub Actions Docker Publish dengan caching BuildKit multi-stage."
+        "Complete removal of 1,434 legacy Android files to streamline the codebase.",
+        "Promoted web components (frontend, backend, server, Dockerfile) directly to the repository root.",
+        "Updated GitHub Actions Docker publishing workflow with multi-stage BuildKit caching."
       ]
     }
   ]

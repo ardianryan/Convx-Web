@@ -1,45 +1,45 @@
-# Catatan Rilis (Changelog) — Convx Web
+# Changelog — Convx Web
 
-Semua perubahan penting pada platform **Convx Web** didokumentasikan dalam berkas ini. Penomoran versi mengacu pada prinsip [Semantic Versioning](https://semver.org/spec/v2.0.0.html) dan disesuaikan dengan rilis resmi Convx Web di GitHub Releases.
+All notable changes to the **Convx Web** platform are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) aligned with official releases on GitHub.
 
 ---
 
 ## [1.0.1] — 2026-09-16
 
-### Ditambahkan (Added)
-- **Format 18 Audio Streaming**: Integrasi client Android YouTube (`clientVersion: 20.10.38`) yang menyajikan Format 18 (kontainer MP4 dengan audio AAC-LC stereo) dengan parameter `ratebypass=yes`.
-- **Dukungan HTTP Range Penuh**: Pemutaran audio kini mendukung rentang bita terbuka (`Range: bytes=0-`) dan navigasi durasi (*seeking*) ke posisi mana pun tanpa batasan kuota burst.
-- **Pelestarian Header pada Redirect**: Penanganan *HTTP 302 Found* dari Google Video CDN dengan meneruskan header `Range` dan `User-Agent` secara otomatis.
-- **Deteksi User-Agent Dinamis**: `AudioProxy` menyesuaikan User-Agent sesuai tipe stream (`c=ANDROID` atau `c=IOS`).
+### Added
+- **Format 18 Audio Engine**: Integrated YouTube Android client (`clientVersion: 20.10.38`) serving Format 18 (MP4 container with stereo AAC-LC audio) with `ratebypass=yes`.
+- **Full HTTP Range & Seeking**: Enabled full open byte range support (`Range: bytes=0-`) and instantaneous scrubbing to any track timestamp without burst limits.
+- **Header Forwarding on Redirects**: Seamless handling of Google Video CDN *HTTP 302 Found* redirects with automated preservation of `Range` and `User-Agent` headers.
+- **Dynamic User-Agent Switching**: Real-time User-Agent selection in `AudioProxy` matching stream parameters (`c=ANDROID` vs `c=IOS`).
 
-### Diubah (Changed)
-- **Arsitektur Repositori Mandiri (Standalone Web)**: Mengangkat komponen web (`frontend/`, `backend/`, `server/`, `Dockerfile`, `docker-compose.yml`) langsung ke root repositori untuk kemudahan navigasi dan *deployment*.
-- **Alur Kerja CI/CD**: Memperbarui alur kerja GitHub Actions (`docker-publish.yml`) agar membaca konteks root (`.`) dengan cache BuildKit multi-stage.
+### Changed
+- **Standalone Repository Architecture**: Promoted all web platform modules (`frontend/`, `backend/`, `server/`, `Dockerfile`, `docker-compose.yml`) directly to the repository root for streamlined development and deployment.
+- **CI/CD Pipeline Optimization**: Updated GitHub Actions workflow (`docker-publish.yml`) to build from the root context (`.`) utilizing multi-stage BuildKit caching.
 
-### Dihapus (Removed)
-- **Pembersihan Kode Sumber Legacy Android**: Menghapus seluruh submodul Gradle Android lama (`app/`, `applecanvas/`, `kizzy/`, `kugou/`, `gradle/`, `innertube/`, dll.) sejumlah 1.434 berkas (-267.278 baris) yang tidak lagi digunakan oleh Convx Web.
+### Removed
+- **Legacy Android Codebase Clean-up**: Completely removed 1,434 obsolete Android Gradle submodule files (-267,278 lines of code) to keep the repository lightweight and focused exclusively on web architecture.
 
-### Diperbaiki (Fixed)
-- **Error 502 Bad Gateway**: Menghilangkan kegagalan stream akibat ketidakcocokan alamat IP antara Cloudflare Relay dan penandatanganan URL Google Video CDN.
-- **Audio Berulang di Detik 28–30**: Mengatasi bug perulangan audio ke 00:00 akibat pembatasan 1 MiB Google Video Server PO Token pada client iOS unauthenticated.
+### Fixed
+- **502 Bad Gateway Errors**: Eliminated stream proxy failures caused by IP address mismatches between Cloudflare Relay and Google Video CDN URL signatures.
+- **0:28 Playback Loop**: Resolved the issue where audio looped back to 00:00 after ~28 seconds due to unauthenticated iOS client GVS PO Token burst quota constraints.
 
 ---
 
 ## [1.0.0] — 2026-09-12
 
-### Ditambahkan (Added)
-- **Rilis Perdana Resmi Convx Web**: Platform streaming musik berkinerja tinggi berbasis peramban web modern (*Official Web Platform*).
-- **Antarmuka Liquid Glass (Svelte 5)**: Menggunakan Svelte 5 + Tailwind CSS + Lucide Icons yang responsif untuk desktop dan perangkat seluler.
-- **Go Backend Audio Engine**: Peladen Go HTTP REST API & AudioProxy berkecepatan tinggi (`http://localhost:7555`) untuk pemutaran audio lancar tanpa jeda.
-- **Node.js Gateway & Drizzle ORM**: Gerbang perantara (`http://localhost:7554`) dengan basis data SQLite untuk manajemen autentikasi sesi pengguna dan konfigurasi multi-relay.
-- **Manajemen Cloudflare Relay**: Dukungan pendaftaran, pengujian kesehatan (*health test*), dan *toggle* Cloudflare Workers relay langsung melalui antarmuka Pengaturan.
-- **Onboarding Wizard**: Panduan konfigurasi interaktif untuk pengguna baru pada saat instalasi awal.
-- **Sinkronisasi YouTube**: Dukungan sinkronisasi *cookie* untuk mengakses playlist pribadi dan riwayat lagu pengguna.
-- **Dukungan Kontainerisasi Docker**: Rilis citra Docker terotomatisasi ke GitHub Container Registry (`ghcr.io/ardianryan/convx-web:latest`).
+### Added
+- **Official Web Platform Launch**: Initial release of Convx Web, a high-performance web music streaming platform.
+- **Liquid Glass Interface (Svelte 5)**: State-of-the-art frosted glass UI built with Svelte 5 runes, Tailwind CSS, and Lucide Icons, optimized for desktop and mobile browsers.
+- **Go Audio Backend**: High-throughput Go REST API and AudioProxy server (`http://localhost:7555`) with InnerTube YouTube Music integration.
+- **Node.js Gateway & Drizzle ORM**: Reverse proxy gateway (`http://localhost:7554`) powered by Express and SQLite database for session authentication and multi-relay management.
+- **Cloudflare Relay Management**: Integrated dashboard to deploy, test, and toggle Cloudflare Workers relays directly from the settings panel.
+- **Onboarding Wizard**: Guided first-run setup flow for admin account initialization and Cloudflare credentials configuration.
+- **YouTube Account Sync**: Cookie import capability enabling access to personal playlists and saved tracks.
+- **Automated Docker Publishing**: GitHub Actions workflow delivering automated multi-stage builds to GitHub Container Registry (`ghcr.io/ardianryan/convx-web:latest`).
 
 ---
 
-## [Rencana Mendatang (Upcoming)] — 1.0.2 / 1.1.0
+## [Upcoming] — 1.0.2 / 1.1.0
 
-- Integrasi dan adaptasi tata bahasa profesional berstandar EYD V.
-- Pemisahan halaman/bagian pengaturan untuk personalisasi bahasa.
+- Professional grammar standardization and language refinement.
+- Dedicated language and personalization settings modules.

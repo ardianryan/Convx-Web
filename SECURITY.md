@@ -8,15 +8,15 @@ Only the latest release (and the current nightly/beta build) are supported with 
 
 Please **do not** open a public GitHub issue for security vulnerabilities.
 
-Instead, report it privately via [GitHub Security Advisories](https://github.com/cosmictaserdev-creator/Convx/security/advisories/new) for this repo, or reach out on [Discord](https://discord.gg/Ejeb4cmzfd) to arrange a private disclosure.
+Instead, report it privately via [GitHub Security Advisories](https://github.com/ardianryan/Convx-Web/security/advisories/new) for this repo, or contact the maintainers directly.
 
 Include:
-- A description of the vulnerability and its impact.
-- Steps to reproduce (a minimal repro is enough).
-- The app version/build you tested on.
+- A description of the vulnerability and its potential impact.
+- Steps to reproduce (a minimal proof-of-concept is ideal).
+- The version, commit hash, or environment tested.
 
-We'll acknowledge reports within a few days and aim to ship a fix before any public disclosure.
+We will acknowledge reports promptly and aim to deploy a fix before any public disclosure.
 
 ## Scope
 
-This covers the Convx Android app and the code in this repository. It does not cover the third-party services the app talks to (YouTube Music, Apple Music, Discord, Last.fm, etc.) — report issues in those to their respective owners.
+This covers the Convx Web platform and the code hosted within this repository. It does not cover external third-party services that the app integrates with (YouTube Music, Cloudflare Workers, etc.).
