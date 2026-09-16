@@ -1,10 +1,10 @@
 # Catatan Rilis (Changelog) — Convx Web
 
-Semua perubahan penting pada proyek **Convx Web** didokumentasikan dalam berkas ini. Format rilis mengacu pada prinsip [Keep a Changelog](https://keepachangelog.com/id/1.0.0/) dan menganut [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Semua perubahan penting pada platform **Convx Web** didokumentasikan dalam berkas ini. Penomoran versi mengacu pada prinsip [Semantic Versioning](https://semver.org/spec/v2.0.0.html) dan disesuaikan dengan rilis resmi Convx Web di GitHub Releases.
 
 ---
 
-## [5.1.1] — 2026-09-16
+## [1.0.1] — 2026-09-16
 
 ### Ditambahkan (Added)
 - **Format 18 Audio Streaming**: Integrasi client Android YouTube (`clientVersion: 20.10.38`) yang menyajikan Format 18 (kontainer MP4 dengan audio AAC-LC stereo) dengan parameter `ratebypass=yes`.
@@ -25,30 +25,21 @@ Semua perubahan penting pada proyek **Convx Web** didokumentasikan dalam berkas 
 
 ---
 
-## [5.1.0] — 2026-09-14
+## [1.0.0] — 2026-09-12
 
 ### Ditambahkan (Added)
-- **Node.js Gateway & Drizzle ORM**: Reverse proxy gateway pada porta `7554` dengan database SQLite untuk manajemen sesi autentikasi dan pengaturan pengguna.
-- **Manajemen Cloudflare Relay**: Dukungan pendaftaran, pengujian kesehatan (*health test*), dan *toggle* Cloudflare Workers relay langsung melalui UI Pengaturan.
-- **Onboarding Wizard**: Panduan konfigurasi awal bagi pengguna baru untuk inisialisasi akun admin dan koneksi relay.
-- **Sinkronisasi Akun YouTube**: Dukungan impor *cookie* YouTube untuk pemutaran playlist pribadi dan lagu tersimpan.
-
-### Diubah (Changed)
-- **Backend Audio Proxy**: Pemisahan porta layanan internal Go (`7555`) dan gerbang publik Node.js (`7554`).
+- **Rilis Perdana Resmi Convx Web**: Platform streaming musik berkinerja tinggi berbasis peramban web modern (*Official Web Platform*).
+- **Antarmuka Liquid Glass (Svelte 5)**: Menggunakan Svelte 5 + Tailwind CSS + Lucide Icons yang responsif untuk desktop dan perangkat seluler.
+- **Go Backend Audio Engine**: Peladen Go HTTP REST API & AudioProxy berkecepatan tinggi (`http://localhost:7555`) untuk pemutaran audio lancar tanpa jeda.
+- **Node.js Gateway & Drizzle ORM**: Gerbang perantara (`http://localhost:7554`) dengan basis data SQLite untuk manajemen autentikasi sesi pengguna dan konfigurasi multi-relay.
+- **Manajemen Cloudflare Relay**: Dukungan pendaftaran, pengujian kesehatan (*health test*), dan *toggle* Cloudflare Workers relay langsung melalui antarmuka Pengaturan.
+- **Onboarding Wizard**: Panduan konfigurasi interaktif untuk pengguna baru pada saat instalasi awal.
+- **Sinkronisasi YouTube**: Dukungan sinkronisasi *cookie* untuk mengakses playlist pribadi dan riwayat lagu pengguna.
+- **Dukungan Kontainerisasi Docker**: Rilis citra Docker terotomatisasi ke GitHub Container Registry (`ghcr.io/ardianryan/convx-web:latest`).
 
 ---
 
-## [5.0.4] — 2026-09-10
-
-### Ditambahkan (Added)
-- **Rilis Perdana Convx Web**: Pemutar musik berbasis web modern dengan antarmuka Svelte 5 + Tailwind CSS (*Liquid Glass UI*).
-- **Go REST API & Proxy Server**: Mesin pencari dan proksi audio berbasis InnerTube YouTube Music.
-- **Dukungan Docker Multi-Stage**: Kontainerisasi gabungan frontend Vite, backend Go, dan gerbang Node.js.
-- **Integrasi Lirik**: Pencarian dan sinkronisasi lirik lagu secara otomatis.
-
----
-
-## [Rencana Mendatang (Upcoming)] — 5.1.2
+## [Rencana Mendatang (Upcoming)] — 1.0.2 / 1.1.0
 
 - Integrasi dan adaptasi tata bahasa profesional berstandar EYD V.
-- Halaman pengaturan khusus untuk personalisasi bahasa dan modul terpisah.
+- Pemisahan halaman/bagian pengaturan untuk personalisasi bahasa.
