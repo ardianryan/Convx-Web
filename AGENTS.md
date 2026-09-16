@@ -37,3 +37,14 @@ Convx Web (`Convx-Web`) is a high-performance web music streaming platform:
 - **Audio Proxy**: [backend/proxy/audio.go](file:///Users/ardianryan/Documents/convx/backend/proxy/audio.go)
 - **InnerTube Client**: [backend/innertube/client.go](file:///Users/ardianryan/Documents/convx/backend/innertube/client.go)
 - **Node Gateway**: [server/index.js](file:///Users/ardianryan/Documents/convx/server/index.js)
+
+---
+
+## 4. Key Milestones & Baselines
+
+- **Baseline Foundation Checkpoint**: `7b93e306daf5808eea3d547d0fc748d50f0b185e` (`7b93e306`)
+  - Full separation from legacy Android codebase with git commit history preserved.
+  - Native YouTube Android Format 18 audio proxying (resolves 502 Bad Gateway and 0:28 playback loop).
+  - Version 1.0.1 aligned documentation and release engineering.
+  - All future feature developments and architectural expansions build upon this stable baseline.
+
