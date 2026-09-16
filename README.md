@@ -1,97 +1,77 @@
-<div align="center">
-  <h1>🌐 CONVX-WEB</h1>
-  <h3>High-Performance Web Music Streaming Platform</h3>
-  <p><b>Powered by Svelte 5 + Vite + Tailwind CSS & Go AudioProxy Backend</b></p>
-  <p><b>Publisher: PPTI MangoTek</b></p>
+# 🎵 Convx Web (Liquid Glass Player)
 
-  <p>
-    <a href="https://github.com/ardianryan/Convx-Web/releases/tag/v1.0.0">
-      <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F%20CONVX--WEB%20v1.0.0-007ACC?style=for-the-badge&logo=github&logoColor=white" alt="Convx-Web Release v1.0.0">
-    </a>
-    <a href="https://github.com/ardianryan/Convx-Web/actions/workflows/docker-publish.yml">
-      <img src="https://img.shields.io/github/actions/workflow/status/ardianryan/Convx-Web/docker-publish.yml?style=for-the-badge&label=Docker%20Release%20CI" alt="Docker CI Status">
-    </a>
-  </p>
-
-  <p>
-    🎵 <b>Official Release:</b> <a href="https://github.com/ardianryan/Convx-Web/releases/tag/v1.0.0"><b>Convx-Web v1.0.0 Tag</b></a>
-  </p>
-</div>
+Convx Web adalah versi web mandiri dari **Convx** yang dirancang **super ringan, kencang, dan hemat memori** (idle RAM < 30 MB).
+Dibangun dengan backend **Go (Golang)** sebagai audio proxy & Innertube engine, serta frontend **Svelte 5 + Vite + Tailwind CSS** dengan tema khas **Liquid Glass**.
 
 ---
 
-## 🚀 Overview
+## ⚡ Fitur Utama
 
-**Convx-Web** is a modern, high-performance web music streaming application featuring a liquid glass UI design, instant YouTube Music searching, native HTML5 high-fidelity audio proxying, synced LRC lyrics, and Cloudflare Worker relay integration.
-
-### ✨ Key Features
-- 🧊 **Liquid Glass UI**: Built with Svelte 5 + Tailwind CSS for a smooth, frosted aesthetic.
-- 🎧 **Native HTML5 Audio Engine**: High-fidelity, low-latency audio streaming powered by Go AudioProxy.
-- 🔍 **YouTube Music Search**: Fast search queries for official tracks, albums, and artists via InnerTube API.
-- 📜 **Synced Lyrics**: Integrated LRCLIB lyrics synchronization with auto-scroll highlighting.
-- ⚡ **Cloudflare Worker Relay**: One-click Cloudflare Relay deployment to bypass regional audio restrictions.
-- 🔑 **Session & Auth Management**: Built-in setup wizard, user login, and YouTube session cookie import.
+- **Ultra Lightweight:** Single binary Go berukuran hanya ~10 MB, ukuran container Docker ~25 MB.
+- **Liquid Glass UI:** Antarmuka modern dengan efek frosted glass (`backdrop-blur`), animasi transisi mulus, dan tema gelap adaptif.
+- **Bypass CORS & Anti-Bot YouTube:** Backend Go menggunakan emulasi client YouTube `ANDROID_VR` dan `IOS` fallback dari Convx Android serta reverse proxy audio streaming dengan dukungan HTTP Range Request (`206 Partial Content`).
+- **MediaSession API:** Dukungan tombol keyboard multimedia dan kontrol notifikasi/lockscreen.
+- **Antrean Lagu (Queue):** Manajemen playlist dan antrean lagu yang reaktif.
 
 ---
 
-## 🏗️ Architecture
+## 🔌 Konfigurasi Port
 
-- **Frontend (`web/frontend`)**: Svelte 5 + Vite + Tailwind CSS SPA.
-- **Backend (`web/backend`)**: Go REST API server & Audio Proxy (`http://localhost:7554`).
-
-```
-Convx-Web/
-├── web/
-│   ├── frontend/         # Svelte 5 + Vite UI (Single Source of Truth)
-│   ├── backend/          # Go HTTP Server & Audio Proxy
-│   │   ├── main.go       # Server entrypoint
-│   │   ├── innertube/    # YouTube InnerTube API Client
-│   │   └── proxy/        # Audio proxy & chunk range handler
-├── docs/                 # Product Specifications & PRD
-└── AGENTS.md             # Architecture Rules & Memory
-```
+- **Port `7554` (Default Production / Server):** Port server Go lengkap (API + Frontend Web yang di-embed).
+- **Port `5147` (Default Frontend Dev):** Port dev server Vite saat pengembangan frontend.
 
 ---
 
-## 💻 Quick Start & Local Development
+## 🐳 Menjalankan dengan Docker
 
-### Prerequisites
-- **Node.js**: v18+
-- **Go**: 1.22+
-
-### 1. Run Web Backend (Go)
+### 1. Jalankan langsung dari GitHub Container Registry (GHCR):
 ```bash
-cd web/backend
-go run main.go
+docker run -d \
+  --name convx-web \
+  --restart unless-stopped \
+  -p 7554:7554 \
+  ghcr.io/ardianryan/convx-web:latest
 ```
-*Backend runs on `http://localhost:7554`.*
+Buka di browser: `http://localhost:7554`
 
-### 2. Run Web Frontend (Svelte 5)
+### 2. Jalankan via Docker Compose:
 ```bash
-cd web/frontend
-npm install
-npm run dev
+cd web
+docker compose up -d
 ```
-*Frontend dev server runs on `http://localhost:5147`.*
-
-### 3. Build Production Dist
-```bash
-cd web/frontend
-npm run build
-```
-*Built assets are automatically compiled into `web/backend/dist`.*
 
 ---
 
-## 📄 Documentation Links
+## 🛠️ Pengembangan Lokal (Local Development)
 
-- 📋 **[PRD Document](docs/PRD.md)** — Comprehensive Product Requirements & Architecture Specifications
-- 🤖 **[AGENTS.md](AGENTS.md)** — Architectural Memory & Coding Rules for AI Assistants
+### Prasyarat
+- Go 1.22+
+- Node.js 18+
 
----
+### Menjalankan Backend & Frontend Bersama:
+1. **Terminal 1: Jalankan Backend Go (Port 7554)**
+   ```bash
+   cd web/backend
+   go run .
+   ```
 
-## 🛡️ License & Credits
+2. **Terminal 2: Jalankan Frontend Svelte Dev (Port 5147)**
+   ```bash
+   cd web/frontend
+   npm install
+   npm run dev
+   ```
+   Buka di browser: `http://localhost:5147` (otomatis mem-proxy request API ke `http://localhost:7554`).
 
-- **Publisher**: PPTI MangoTek
-- **License**: GPL-3.0
+### Build Single Binary Mandiri:
+```bash
+# 1. Build frontend ke backend/dist
+cd web/frontend && npm run build
 
+# 2. Compile binary Go
+cd ../backend && CGO_ENABLED=0 go build -ldflags="-s -w" -o convx-web .
+
+# 3. Jalankan binary tunggal!
+./convx-web
+```
+Binary `./convx-web` sudah memuat seluruh frontend dan backend di dalam satu file!
